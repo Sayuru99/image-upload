@@ -10,39 +10,21 @@ class ImageBloc extends Bloc<ImageEvent, ImageState> {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
   ImageBloc() : super(ImageInitial()) {
-    on<SelectImageEvent>((event, emit) {
-      add(event);
-    });
-  }
-  Stream<ImageState> mapEventToState(ImageEvent event) async* {
-    if (event is SelectImageEvent) {
-      yield* _mapSelectImageToState();
-    } else if (event is UploadImageEvent) {
-      yield* _mapUploadImageToState(event.imagePath);
-    }
+    on<SelectImageEvent>(_onSelectImageEvent);
+    on<UploadImageEvent>(_onUploadImageEvent);
   }
 
-  Stream<ImageState> _mapSelectImageToState() async* {
+  Future<void> _onSelectImageEvent(
+      SelectImageEvent event, Emitter<ImageState> emit) async {
+    emit(ImageSelected(event.imagePath));
+  }
+
+  Future<void> _onUploadImageEvent(
+      UploadImageEvent event, Emitter<ImageState> emit) async {
     try {
-      final imagePicker = ImagePicker();
-      final pickedFile =
-          await imagePicker.pickImage(source: ImageSource.gallery);
+      emit(ImageUploadInProgress());
 
-      if (pickedFile != null) {
-        yield ImageSelected(pickedFile.path);
-      } else {
-        yield ImageInitial();
-      }
-    } catch (e) {
-      yield ImageInitial();
-    }
-  }
-
-  Stream<ImageState> _mapUploadImageToState(String imagePath) async* {
-    try {
-      yield ImageUploadInProgress();
-
-      final file = File(imagePath);
+      final file = File(event.imagePath);
       final ref =
           _storage.ref().child('images').child(DateTime.now().toString());
       final uploadTask = ref.putFile(file);
@@ -50,9 +32,9 @@ class ImageBloc extends Bloc<ImageEvent, ImageState> {
       final snapshot = await uploadTask.whenComplete(() {});
       final imageUrl = await snapshot.ref.getDownloadURL();
 
-      yield ImageUploadSuccess(imageUrl);
+      emit(ImageUploadSuccess(imageUrl));
     } catch (e) {
-      yield ImageUploadFailure('$e');
+      emit(ImageUploadFailure('$e'));
     }
   }
 }
