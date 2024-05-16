@@ -163,7 +163,7 @@ class _ImageSendScreenState extends State<ImageSendScreen> {
                 ElevatedButton.icon(
                   onPressed: () {
                     String caption = captionController.text;
-                    // Handle the send action here, e.g., upload the image and caption
+
                     Navigator.pop(context);
                   },
                   icon: const Icon(Icons.send),
