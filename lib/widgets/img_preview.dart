@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:local_rembg/local_rembg.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/http.dart';
 
 class ImageSendScreen extends StatefulWidget {
   final String imagePath;
@@ -38,22 +40,52 @@ class _ImageSendScreenState extends State<ImageSendScreen> {
     print('Removing background from image at path: ${widget.imagePath}');
 
     try {
-      LocalRembgResultModel result = await LocalRembg.removeBackground(
-        imagePath: widget.imagePath,
+      final apiKey = '01ee2dc2923acb3bdcb3f1bafadaa9f37a102adf';
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://sdk.photoroom.com/v1/segment'),
+      );
+      request.headers['x-api-key'] = apiKey;
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'image_file',
+          widget.imagePath,
+        ),
       );
 
-      print('Background removal result status: ${result.status}');
+      var response = await request.send();
+      print('Background removal API response: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        var contentType = response.headers['content-type'];
+        if (contentType?.startsWith('application/json') ?? false) {
+          var responseData = await response.stream.bytesToString();
+          final Map<String, dynamic> data = json.decode(responseData);
+          final String? imageUrl = data['result'];
 
-      if (result.status == 1) {
-        setState(() {
-          _imageBytes = Uint8List.fromList(result.imageBytes!);
-          _isLoading = false;
-        });
+          if (imageUrl != null) {
+            final imageResponse = await http.get(Uri.parse(imageUrl));
+            if (imageResponse.statusCode == 200) {
+              setState(() {
+                _imageBytes = imageResponse.bodyBytes;
+                _isLoading = false;
+              });
+            } else {
+              throw 'Failed to download the processed image';
+            }
+          } else {
+            throw 'Image URL is null';
+          }
+        } else if (contentType?.startsWith('image/png') ?? false) {
+          final imageData = await response.stream.toBytes();
+          setState(() {
+            _imageBytes = imageData;
+            _isLoading = false;
+          });
+        } else {
+          throw 'Unexpected content type: $contentType';
+        }
       } else {
-        setState(() {
-          _errorMessage = result.errorMessage;
-          _isLoading = false;
-        });
+        throw 'Failed to remove background. Status code: ${response.statusCode}';
       }
     } catch (e) {
       setState(() {
