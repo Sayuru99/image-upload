@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:bloc/bloc.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'image_event.dart';
 import 'image_state.dart';
 
